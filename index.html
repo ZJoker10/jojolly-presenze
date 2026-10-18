@@ -543,6 +543,7 @@
   let geoSkipped = false;
   let mode = 'IN';                 // IN | OUT
   let openSession = null;          // { id, nome, iso } — entrata aperta
+  let siteCfg = null;              // perimetro autorizzato (?site=1)
 
   const $ = id => document.getElementById(id);
 
@@ -558,6 +559,24 @@
     return d.getFullYear() + '-' +
       String(d.getMonth() + 1).padStart(2, '0') + '-' +
       String(d.getDate()).padStart(2, '0');
+  }
+
+  // ── GEOFENCE (perimetro autorizzato) ────────────────────────────────────────
+  function distanceMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371000, rad = x => x * Math.PI / 180;
+    const dLat = rad(lat2 - lat1), dLon = rad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  async function loadSiteConfig() {
+    try {
+      const res = await fetch(`${SCRIPT_URL}?site=1`, { method: 'GET' });
+      if (!res.ok) return;
+      const data = await res.json();
+      siteCfg = (data.ok && data.site) ? data.site : null;
+    } catch { siteCfg = null; }
   }
 
   // ── DEVICE FINGERPRINT ──────────────────────────────────────────────────────
@@ -660,9 +679,17 @@
         const { latitude: lat, longitude: lon, accuracy } = pos.coords;
         geoData = { lat, lon, accuracy };
         const poor = accuracy > ACC_WARN_M;
-        setBox(poor ? 'warn' : 'success', '📍', poor ? 'amber' : 'green',
+        let outside = false, distTxt = '';
+        if (siteCfg) {
+          const d = distanceMeters(lat, lon, siteCfg.lat, siteCfg.lon);
+          outside = d > siteCfg.radius;
+          if (outside) distTxt = `\n⚠ Fuori dal perimetro autorizzato (${Math.round(d)} m dal cantiere).`;
+        }
+        const bad = poor || outside;
+        setBox(bad ? 'warn' : 'success', '📍', bad ? 'amber' : 'green',
           `${lat.toFixed(6)}, ${lon.toFixed(6)}\nPrecisione: ±${Math.round(accuracy)} m`
-          + (poor ? '\n⚠ Precisione scarsa: verifica di essere all\'aperto.' : ''));
+          + (poor ? '\n⚠ Precisione scarsa: verifica di essere all\'aperto.' : '')
+          + distTxt);
         const link = $('geoLink');
         link.href = `https://www.google.com/maps?q=${lat},${lon}`;
         link.hidden = false;
@@ -926,7 +953,9 @@
   }
   showQueueBanner(readQueue().length);
   renderSession();
-  initGeo();
+  // carica il perimetro autorizzato PRIMA della geolocalizzazione, così
+  // l'avviso "fuori perimetro" appare fin dal primo fix
+  loadSiteConfig().catch(() => {}).then(() => { initGeo(); });
   flushQueue();
   loadMyTimeline();
 </script>

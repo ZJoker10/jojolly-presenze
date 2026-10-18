@@ -223,6 +223,7 @@
     <div class="stat"><div class="k">Uscite totali</div><div class="v" id="stOut">0</div></div>
     <div class="stat"><div class="k">Ore lavorate</div><div class="v amber" id="stHours">0h</div></div>
     <div class="stat"><div class="k">Senza uscita</div><div class="v amber" id="stOpen">0</div></div>
+    <div class="stat"><div class="k">Fuori perimetro</div><div class="v" id="stOutside" style="color:var(--danger)">0</div></div>
   </div>
 
   <div class="panel">
@@ -356,7 +357,7 @@
         }
         return;
       }
-      render(data.events || [], date);
+      render(data.events || [], date, data.summary || null);
       $('lastUpdate').textContent = 'aggiornato ' +
         new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     } catch (e) {
@@ -365,7 +366,7 @@
     }
   }
 
-  function render(events, date) {
+  function render(events, date, summary) {
     // ── raggruppa per sessione ──
     const sessions = new Map();
     for (const ev of events) {
@@ -394,6 +395,9 @@
     $('stOut').textContent = nOut;
     $('stHours').textContent = (totalMin / 60).toFixed(1).replace('.0', '') + 'h';
     $('stOpen').textContent = openIds.size;
+    const nOutside = events.filter(e => e.locationOk === false).length;
+    $('stOutside').textContent = nOutside;
+    $('stOutside').title = nOutside ? nOutside + ' eventi fuori dal perimetro autorizzato' : 'Nessun evento fuori perimetro';
     $('sessCount').textContent = list.length ? list.length + ' sessioni' : '';
     $('evCount').textContent = events.length ? events.length + ' eventi' : '';
 
@@ -406,9 +410,11 @@
       const outTime = s.out ? hhmm(s.out.iso) : '—';
       const minutes_ = (s.in && s.out) ? minutes(s.in.iso, s.out.iso) : null;
       const geo = s.in || s.out;
+      const outside = (s.in && s.in.locationOk === false) || (s.out && s.out.locationOk === false);
+      const outsideBadge = outside ? ' <span class="badge nogps" title="Fuori dal perimetro autorizzato">⚠ fuori perimetro</span>' : '';
       const gps = geo && geo.lat != null
-        ? `<a class="maplink" target="_blank" rel="noopener" href="${escapeHtml(geo.mapsUrl || ('https://www.google.com/maps?q=' + geo.lat + ',' + geo.lon))}">📍 ${Math.round(geo.accuracy)} m</a>`
-        : '<span class="badge nogps">senza GPS</span>';
+        ? `<a class="maplink" target="_blank" rel="noopener" href="${escapeHtml(geo.mapsUrl || ('https://www.google.com/maps?q=' + geo.lat + ',' + geo.lon))}">📍 ${Math.round(geo.accuracy)} m</a>${outsideBadge}`
+        : `<span class="badge nogps">senza GPS</span>${outsideBadge}`;
       const notes = [s.in && s.in.notes, s.out && s.out.notes].filter(Boolean).join(' · ');
       const stato = orfano
         ? '<span class="badge open">⚠ uscita orfana</span>'
@@ -428,9 +434,11 @@
     // ── registro eventi ──
     $('evEmpty').hidden = events.length > 0;
     $('evBody').innerHTML = events.map(ev => {
+      const outsideBadge = ev.locationOk === false
+        ? ' <span class="badge nogps" title="Fuori dal perimetro autorizzato">⚠ fuori</span>' : '';
       const gps = ev.lat != null
-        ? `<a class="maplink" target="_blank" rel="noopener" href="${escapeHtml(ev.mapsUrl || ('https://www.google.com/maps?q=' + ev.lat + ',' + ev.lon))}">${ev.lat.toFixed(5)}, ${ev.lon.toFixed(5)}</a>`
-        : '<span class="badge nogps">senza GPS</span>';
+        ? `<a class="maplink" target="_blank" rel="noopener" href="${escapeHtml(ev.mapsUrl || ('https://www.google.com/maps?q=' + ev.lat + ',' + ev.lon))}">${ev.lat.toFixed(5)}, ${ev.lon.toFixed(5)}</a>${outsideBadge}`
+        : `<span class="badge nogps">senza GPS</span>${outsideBadge}`;
       return `<tr>
         <td class="muted">${hhmm(ev.iso)}</td>
         <td><span class="badge ${ev.event}">${ev.event === 'IN' ? 'ENTRATA' : 'USCITA'}</span></td>

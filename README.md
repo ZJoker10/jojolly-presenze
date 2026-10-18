@@ -9,12 +9,15 @@ Attendance system for workers with **two interfaces**:
 
 Backend: Google Apps Script ([`apps-script/Code.gs`](apps-script/Code.gs)) writing to a Google Sheet.
 
+**v3 extras:** geofence validation (site perimeter) + daily digest email to the owner.
+
 ## Employee interface
 
 - **Entrata / Uscita** segmented toggle (auto-switches to *Uscita* when a session is open).
 - **Open-session banner**: "In servizio da 2h 14m" with a live counter; session is persisted in `localStorage` (closing the browser doesn't lose it). Sessions open >16 h are flagged as forgotten.
 - **Notes field** (optional, max 500 chars) — e.g. "consegna materiali", "cantiere X".
 - **GPS** with retry, "continua senza GPS", and ±100 m accuracy warnings.
+- **Geofence warning** — if `SITE_LAT/SITE_LON` are configured, the page warns "⚠ Fuori dal perimetro autorizzato (X m dal cantiere)" the moment a GPS fix arrives.
 - **Offline queue** — events are queued in `localStorage` and flushed on reconnect.
 - **Honest delivery states** — confirmed / sent-unconfirmed / queued (never fake success).
 - **"La tua giornata di oggi"** timeline — the worker sees their own events + durations + notes.
@@ -23,8 +26,8 @@ Backend: Google Apps Script ([`apps-script/Code.gs`](apps-script/Code.gs)) writi
 ## Admin interface
 
 - **PIN login** — the PIN is a Script property (`ADMIN_PIN`), never shipped in the page code; session kept in `sessionStorage`.
-- **Stats row**: present now · total entrances · total exits · worked hours · missing check-outs.
-- **Sessions table**: per-worker entry, exit, duration, status (● still here / completed / ⚠ orphan exit), GPS link, notes.
+- **Stats row**: present now · total entrances · total exits · worked hours · missing check-outs · **outside geofence**.
+- **Sessions table**: per-worker entry, exit, duration, status (● still here / completed / ⚠ orphan exit), GPS link, **⚠ fuori perimetro badge**, notes.
 - **Chronological event log**: time, type, name, GPS, notes.
 - Date picker + manual refresh + **auto-refresh every 60 s**.
 - `noindex, nofollow` meta so the admin page isn't indexed.
@@ -34,6 +37,7 @@ Backend: Google Apps Script ([`apps-script/Code.gs`](apps-script/Code.gs)) writi
 ```
 id | session_id | event(IN/OUT) | timestamp_server | iso | timestamp_locale | tz
    | nome | lat | lon | accuracy | geo_skipped | notes | maps_url | device_id
+   | location_ok (yes/no/'' — geofence)
 ```
 
 - `IN` starts a session (`session_id = id`), `OUT` references the `IN` id.
@@ -51,6 +55,8 @@ graph TD
     A -.->|"offline"| E[(localStorage<br/>queue + open session)]
     E -.->|"online event"| A
     B -->|"doGet returns JSON<br/>CORS-friendly"| C
+    B -->|"trigger 18:00<br/>sendDailyDigest()"| F[("📧 Digest email<br/>MANAGER_EMAIL")]
+    B -->|"location_ok = yes/no<br/>(Haversine vs SITE_*)"| D
 
     classDef Primary fill:#00ffff,color:#000,stroke:#080d1a
     classDef Gateway fill:#ee82ff,color:#fff,stroke:#080d1a
@@ -60,6 +66,7 @@ graph TD
     class A,C Primary
     class B Gateway
     class D,E DataLayer
+    class F External
 
     linkStyle default stroke:#00ffff,stroke-width:2px
 ```
@@ -88,13 +95,31 @@ flowchart LR
 
 ### 1. Backend
 
-1. Create a Google Sheet.
+1. Create a Google Sheet (a **fresh** one — an old v1 sheet is auto-archived as `Presenze_v1_archivio` and recreated).
 2. **Extensions → Apps Script**, paste [`apps-script/Code.gs`](apps-script/Code.gs).
-3. **Project Settings → Script properties** → add `ADMIN_PIN = <your-PIN>` (this unlocks `admin.html`).
-4. **Deploy → New deployment → Web app** — Execute as: *Me*, Access: *Anyone*.
-5. Copy the `/exec` URL into `SCRIPT_URL` in **both** `index.html` and `admin.html`.
+3. **Project Settings → Script properties**:
 
-> ⚠️ The current `SCRIPT_URL` still points to the **old v1 deployment**. Redeploy with `Code.gs` v2 — otherwise entry/exit events and the admin dashboard won't work (the old script has no `?events=` / `?mine=` endpoints).
+   | Property | Required | Purpose |
+   |---|---|---|
+   | `ADMIN_PIN` | ✅ | unlocks `admin.html` |
+   | `MANAGER_EMAIL` | for digest | recipient of the daily summary email |
+   | `SITE_LAT` / `SITE_LON` | for geofence | job-site coordinates |
+   | `SITE_RADIUS_M` | optional | perimeter radius in metres (default 100) |
+
+4. Run **`setupTriggers()`** once from the editor → creates the **daily digest trigger at 18:00** (edit `DIGEST_HOUR` in the script to change; run `sendDailyDigestNow()` to test).
+5. **Deploy → New deployment → Web app** — Execute as: *Me*, Access: *Anyone*.
+6. Copy the `/exec` URL into `SCRIPT_URL` in **both** `index.html` and `admin.html`.
+
+### Daily digest email
+
+`sendDailyDigest()` (triggered daily, or run manually) emails the owner:
+
+- unique workers, total worked hours, open sessions
+- ⚠ **still present** list (missing check-out)
+- ⚠ **outside geofence** list (with times)
+- full session detail with entry → exit, duration and the worker's notes
+
+> ⚠️ The current `SCRIPT_URL` still points to the **old v1 deployment**. Redeploy with `Code.gs` v3 — otherwise entry/exit events, the admin dashboard, geofence and digest won't work (the old script has no `?events=` / `?mine=` / `?site=` endpoints).
 
 ### 2. GitHub Pages
 
