@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Check-in Presenze — Erodo OY</title>
+<meta name="description" content="Registra la tua presenza lavorativa con nome, orario e posizione GPS." />
+<meta name="theme-color" content="#0d0f14" />
+<meta property="og:title" content="Check-in Presenze — Erodo OY" />
+<meta property="og:description" content="Compila il form per registrare la tua presenza." />
+<meta property="og:type" content="website" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%85%3C/text%3E%3C/svg%3E" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #161921;
+    --border: #2a2f3d;
+    --accent: #00e5a0;
+    --accent-dim: rgba(0,229,160,0.12);
+    --text: #e8eaf0;
+    --muted: #8b93a5;
+    --danger: #ff4f6a;
+    --warn: #ffc46b;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 48px 48px;
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: -120px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(0,229,160,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 460px;
+    position: relative;
+    box-shadow: 0 0 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset;
+    animation: fadeUp 0.5s ease both;
+    z-index: 1;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid rgba(0,229,160,0.25);
+    border-radius: 100px;
+    padding: 4px 12px;
+    margin-bottom: 20px;
+  }
+
+  .tag::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 32px;
+    letter-spacing: 0.02em;
+  }
+
+  .field { margin-bottom: 20px; }
+
+  label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 16px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  input[type="text"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,229,160,0.12);
+  }
+
+  input[type="text"]::placeholder { color: var(--muted); }
+
+  .datetime-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+  }
+
+  .datetime-box .tz {
+    display: block;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .geo-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 12px;
+    transition: border-color 0.3s;
+  }
+
+  .geo-box.acquiring { border-color: var(--border); }
+  .geo-box.success   { border-color: rgba(0,229,160,0.4); }
+  .geo-box.warn      { border-color: rgba(255,196,107,0.5); }
+  .geo-box.error     { border-color: rgba(255,79,106,0.4); }
+
+  .geo-icon { font-size: 20px; line-height: 1; flex-shrink: 0; }
+
+  .geo-label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .geo-value { color: var(--text); word-break: break-all; line-height: 1.6; }
+  .geo-value.muted { color: var(--muted); font-style: italic; }
+  .geo-value.green { color: var(--accent); }
+  .geo-value.amber { color: var(--warn); }
+  .geo-value.red   { color: var(--danger); }
+
+  .geo-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; }
+
+  .geo-link, .geo-btn {
+    display: inline-block;
+    font-size: 11px;
+    color: var(--accent);
+    text-decoration: none;
+    opacity: 0.85;
+    transition: opacity 0.2s;
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .geo-link:hover, .geo-btn:hover { opacity: 1; text-decoration: underline; }
+  .geo-btn.muted { color: var(--muted); }
+
+  button[type="submit"] {
+    width: 100%;
+    margin-top: 28px;
+    padding: 15px;
+    background: var(--accent);
+    color: #000;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+    box-shadow: 0 0 24px rgba(0,229,160,0.25);
+  }
+
+  button[type="submit"]:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 0 36px rgba(0,229,160,0.35);
+  }
+
+  button[type="submit"]:active:not(:disabled) { transform: translateY(0); }
+
+  button[type="submit"]:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .receipt {
+    margin-top: 20px;
+    background: var(--bg);
+    border: 1px solid rgba(0,229,160,0.35);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text);
+    display: none;
+  }
+  .receipt.show { display: block; animation: fadeUp 0.3s ease both; }
+  .receipt b { color: var(--accent); font-weight: 500; }
+  .receipt .rid { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; }
+
+  .queue-banner {
+    display: none;
+    margin-top: 16px;
+    font-size: 11px;
+    color: var(--warn);
+    letter-spacing: 0.04em;
+    line-height: 1.6;
+  }
+  .queue-banner.show { display: block; }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 12px 24px;
+    font-size: 13px;
+    max-width: calc(100vw - 32px);
+    text-align: center;
+    transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .toast.success { border-color: rgba(0,229,160,0.4); color: var(--accent); }
+  .toast.warning { border-color: rgba(255,196,107,0.4); color: var(--warn); }
+  .toast.error   { border-color: rgba(255,79,106,0.4); color: var(--danger); }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+  footer {
+    margin-top: 24px;
+    max-width: 460px;
+    width: 100%;
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--muted);
+    text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+  footer summary { cursor: pointer; color: var(--text); font-size: 12px; }
+  footer details { text-align: left; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px; margin-top: 10px; }
+  footer ul { padding-left: 18px; margin-top: 6px; }
+  footer a { color: var(--accent); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="tag">Erodo OY — Presenze</div>
+  <h1>Check-in<br/>lavoratore</h1>
+  <p class="subtitle">Compila il form per registrare la tua presenza</p>
+
+  <form id="checkinForm" novalidate>
+
+    <div class="field">
+      <label for="nome">Nome e Cognome</label>
+      <input type="text" id="nome" name="nome" placeholder="es. Mario Rossi" required autocomplete="name" />
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label id="datetimeLabel">Data e ora</label>
+      <div class="datetime-box" id="datetimeDisplay" aria-live="off">—</div>
+      <span class="tz" style="display:none"></span>
+    </div>
+
+    <div class="field">
+      <label id="geoLabel">Posizione GPS</label>
+      <div class="geo-box acquiring" id="geoBox" role="status" aria-labelledby="geoLabel">
+        <div class="geo-icon" id="geoIcon" aria-hidden="true">📡</div>
+        <div>
+          <div class="geo-label">Stato</div>
+          <div class="geo-value muted" id="geoText" aria-live="polite">Acquisizione in corso…</div>
+          <div class="geo-actions">
+            <a href="#" class="geo-link" id="geoLink" hidden target="_blank" rel="noopener">Apri su Maps →</a>
+            <button type="button" class="geo-btn" id="geoRetry" hidden>Riprova localizzazione</button>
+            <button type="button" class="geo-btn muted" id="geoSkip">Continua senza GPS</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" id="submitBtn" disabled>
+      Invia Check-in
+    </button>
+
+    <div class="queue-banner" id="queueBanner" aria-live="polite"></div>
+    <div class="receipt" id="receipt" aria-live="polite"></div>
+
+  </form>
+</div>
+
+<footer>
+  <details>
+    <summary>ℹ️ Informativa privacy e dati raccolti</summary>
+    <p>Al momento dell'invio vengono trattati i seguenti dati personali (Reg. UE 2016/679 — GDPR):</p>
+    <ul>
+      <li><b>Nome e cognome</b> — identificativo del lavoratore;</li>
+      <li><b>Data e ora</b> — orario ISO 8601 con fuso orario (più orario locale);</li>
+      <li><b>Posizione GPS</b> — latitudine, longitudine e precisione (metri);</li>
+      <li><b>Identificativo dispositivo</b> — hash SHA-256 di caratteristiche del browser, usato per prevenire doppio invio, non per il tracciamento continuo.</li>
+    </ul>
+    <p>I dati sono inviati a Google Apps Script / Google Sheets (Google Ireland Limited) e conservati per la sola durata necessaria alla gestione delle presenze.
+    Titolare del trattamento: Erodo OY. L'uso della posizione è facoltativo: puoi procedere senza GPS tramite il link "Continua senza GPS".
+    Per esercitare i diritti previsti dagli artt. 15–22 GDPR contatta il titolare.</p>
+  </details>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+  'use strict';
+
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzueT0JKWHpNLL8AgM2p62_3LtClxzMBK3SNaelSBESjStQ3FC9Va2DOzBYKc5bwWje/exec';
+  const QUEUE_KEY  = 'checkin_queue_v1';
+  const ACC_WARN_M = 100;   // precisione > 100 m → avviso
+  const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'locale';
+
+  let geoData = null;
+  let geoSkipped = false;
+
+  // ── HELPERS ─────────────────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+
+  function uuid() {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
+  // ── DEVICE FINGERPRINT (solo anti doppio-invio, hex troncato) ───────────────
+  async function getDeviceFingerprint() {
+    try {
+      const raw = [
+        navigator.userAgent, navigator.language,
+        screen.width + 'x' + screen.height, screen.colorDepth,
+        new Date().getTimezoneOffset(),
+        navigator.hardwareConcurrency || '',
+        navigator.deviceMemory || '',
+        navigator.platform || '',
+      ].join('|');
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+      return Array.from(new Uint8Array(buf))
+        .map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
+    } catch {
+      return 'no-fingerprint';
+    }
+  }
+
+  // ── CLOCK ───────────────────────────────────────────────────────────────────
+  function updateClock() {
+    const now = new Date();
+    $('datetimeDisplay').textContent =
+      now.toLocaleDateString('it-IT', { weekday:'long', day:'2-digit', month:'long', year:'numeric' })
+      + '  —  '
+      + now.toLocaleTimeString('it-IT')
+      + '  (' + TZ + ')';
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // ── GEOLOCALIZZAZIONE ───────────────────────────────────────────────────────
+  function initGeo() {
+    geoSkipped = false;
+    geoData = null;
+    $('geoSkip').hidden = false;
+    $('geoRetry').hidden = true;
+
+    if (!navigator.geolocation) {
+      setGeoError('Geolocalizzazione non supportata da questo browser.');
+      return;
+    }
+    setBox('acquiring', '📡', 'muted', 'Acquisizione in corso…');
+
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const { latitude: lat, longitude: lon, accuracy } = pos.coords;
+        geoData = { lat, lon, accuracy };
+
+        const poor = accuracy > ACC_WARN_M;
+        setBox(poor ? 'warn' : 'success', '📍', poor ? 'amber' : 'green',
+          `${lat.toFixed(6)}, ${lon.toFixed(6)}\nPrecisione: ±${Math.round(accuracy)} m`
+          + (poor ? '\n⚠ Precisione scarsa: verifica di essere all\'aperto.' : ''));
+
+        const link = $('geoLink');
+        link.href = `https://www.google.com/maps?q=${lat},${lon}`;
+        link.hidden = false;
+        $('geoRetry').hidden = false;
+        $('geoSkip').hidden = true;
+        updateSubmitState();
+      },
+      err => {
+        const msgs = {
+          1: 'Permesso negato. Abilita la posizione nelle impostazioni del browser.',
+          2: 'Posizione non disponibile.',
+          3: 'Timeout. Riprova o continua senza GPS.',
+        };
+        setGeoError(msgs[err.code] || 'Errore sconosciuto.');
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }
+
+  function setBox(cls, icon, textCls, text) {
+    $('geoBox').className = 'geo-box ' + cls;
+    $('geoIcon').textContent = icon;
+    $('geoText').className = 'geo-value ' + textCls;
+    $('geoText').textContent = text;
+    $('geoText').style.whiteSpace = 'pre';
+  }
+
+  function setGeoError(msg) {
+    setBox('error', '⚠️', 'red', msg);
+    $('geoRetry').hidden = false;
+    $('geoSkip').hidden = false;
+    updateSubmitState();
+  }
+
+  function updateSubmitState() {
+    const nomeOk = $('nome').value.trim().length > 0;
+    $('submitBtn').disabled = !(nomeOk && (geoData || geoSkipped));
+  }
+
+  $('geoRetry').addEventListener('click', initGeo);
+  $('geoSkip').addEventListener('click', () => {
+    geoSkipped = true;
+    geoData = null;
+    $('geoLink').hidden = true;
+    $('geoSkip').hidden = true;
+    setBox('warn', '📍', 'amber', 'Posizione non acquisita — il check-in sarà registrato SENZA GPS.');
+    updateSubmitState();
+  });
+  $('nome').addEventListener('input', updateSubmitState);
+
+  // ── CODA OFFLINE ────────────────────────────────────────────────────────────
+  function readQueue() {
+    try { return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; }
+    catch { return []; }
+  }
+  function writeQueue(q) {
+    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch {}
+    showQueueBanner(q.length);
+  }
+  function showQueueBanner(n) {
+    const b = $('queueBanner');
+    if (n > 0) {
+      b.textContent = `⏳ ${n} check-in in attesa di invio (connessione assente). Saranno inviati automaticamente.`;
+      b.classList.add('show');
+    } else {
+      b.classList.remove('show');
+      b.textContent = '';
+    }
+  }
+
+  // ── INVIO + VERIFICA ────────────────────────────────────────────────────────
+  // POST con Content-Type "text/plain" (simple request, niente preflight):
+  // il body JSON arriva integro e Apps Script lo legge con e.postData.contents.
+  async function postCheckin(payload) {
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    // res è opaco: possiamo rilevare solo errori di rete, non errori HTTP.
+    return res;
+  }
+
+  // Verifica lato server tramite doGet (?v=<id>). Se l'endpoint non espone doGet
+  // la chiamata fallisce e restituiamo "inviato non confermato" (onesto).
+  async function verifyCheckin(id) {
+    try {
+      const res = await fetch(`${SCRIPT_URL}?v=${encodeURIComponent(id)}`, { method: 'GET' });
+      if (!res.ok) return false;
+      const txt = await res.text();
+      return txt.includes(id) || txt.includes('"ok"');
+    } catch {
+      return false;
+    }
+  }
+
+  async function sendPayload(payload) {
+    await postCheckin(payload);
+    // piccolo delay: il back-end Apps Script può essere lento ad attivarsi
+    await new Promise(r => setTimeout(r, 1500));
+    return verifyCheckin(payload.id);
+  }
+
+  async function flushQueue() {
+    const q = readQueue();
+    if (q.length === 0) return;
+    const remaining = [];
+    for (const p of q) {
+      try {
+        await postCheckin(p);
+      } catch {
+        remaining.push(p);
+      }
+    }
+    writeQueue(remaining);
+    if (remaining.length === 0) showToast('✓ Check-in in coda inviati.', 'success');
+  }
+
+  window.addEventListener('online', flushQueue);
+
+  // ── SUBMIT ──────────────────────────────────────────────────────────────────
+  $('checkinForm').addEventListener('submit', async e => {
+    e.preventDefault();
+
+    const nome = $('nome').value.trim();
+    if (!nome) { showToast('Inserisci nome e cognome.', 'error'); return; }
+    if (!geoData && !geoSkipped) { showToast('Posizione GPS non disponibile.', 'error'); return; }
+
+    const btn = $('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Invio…';
+
+    const now = new Date();
+    const payload = {
+      id: uuid(),                              // idempotency key (dedupe lato server)
+      nome,
+      iso: now.toISOString(),                  // timestamp ISO 8601 UTC (affidabile)
+      timestamp: now.toLocaleString('it-IT'),   // timestamp locale (leggibile)
+      tz: TZ,
+      lat:       geoData ? geoData.lat : null,
+      lon:       geoData ? geoData.lon : null,
+      accuracy:  geoData ? geoData.accuracy : null,
+      geoSkipped,
+      mapsUrl:   geoData ? `https://www.google.com/maps?q=${geoData.lat},${geoData.lon}` : '',
+      deviceId:  await getDeviceFingerprint(),
+      ua: navigator.userAgent,
+    };
+
+    const restoreBtn = () => { btn.textContent = 'Invia Check-in'; updateSubmitState(); };
+
+    // Offline → metti in coda e riprova appena torna la rete
+    if (navigator.onLine === false) {
+      const q = readQueue();
+      q.push(payload);
+      writeQueue(q);
+      showReceipt(payload, 'queued');
+      showToast('📡 Offline — check-in salvato in coda.', 'warning');
+      $('checkinForm').reset();
+      restoreBtn();
+      return;
+    }
+
+    try {
+      const confirmed = await sendPayload(payload);
+
+      if (confirmed) {
+        showReceipt(payload, 'confirmed');
+        showToast('✓ Check-in registrato!', 'success');
+      } else {
+        // Inviato ma non confermato: non mentiamo all'utente
+        showReceipt(payload, 'unconfirmed');
+        showToast('⚠ Inviato, conferma del server non disponibile.', 'warning');
+      }
+
+      $('checkinForm').reset();
+      $('receipt').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      restoreBtn();
+      setTimeout(() => { initGeo(); }, 1200);
+    } catch (err) {
+      // Errore di rete → coda
+      const q = readQueue();
+      if (!q.some(p => p.id === payload.id)) q.push(payload);
+      writeQueue(q);
+      showReceipt(payload, 'queued');
+      showToast('Errore di rete — check-in salvato in coda.', 'warning');
+      $('checkinForm').reset();
+      restoreBtn();
+    }
+  });
+
+  function showReceipt(p, status) {
+    const box = $('receipt');
+    const statusLine = {
+      confirmed:   '<b>✓ Confermato dal server</b>',
+      unconfirmed: '<b style="color:var(--warn)">⚠ Inviato, non confermato</b>',
+      queued:      '<b style="color:var(--warn)">⏳ In coda (offline)</b>',
+    }[status];
+    const coords = (p.lat != null)
+      ? `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)} ±${Math.round(p.accuracy)} m`
+      : 'non acquisita';
+    box.innerHTML =
+      `${statusLine}<br>` +
+      `<b>${escapeHtml(p.nome)}</b><br>` +
+      `${escapeHtml(new Date(p.iso).toLocaleString('it-IT'))} (${escapeHtml(p.tz)})<br>` +
+      `📍 ${escapeHtml(coords)}<br>` +
+      `<span class="rid">ID: ${escapeHtml(p.id)}</span>`;
+    box.classList.add('show');
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c =>
+      ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+
+  function showToast(msg, type) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => { t.className = `toast ${type}`; }, 4000);
+  }
+
+  // ── BOOT ────────────────────────────────────────────────────────────────────
+  showQueueBanner(readQueue().length);
+  initGeo();
+  flushQueue();
+</script>
+</body>
+</html>
