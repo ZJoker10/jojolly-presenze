@@ -263,6 +263,8 @@
 
   .geo-icon { font-size: 20px; line-height: 1; flex-shrink: 0; }
 
+  .geo-box > div:last-child { min-width: 0; flex: 1; }
+
   .geo-label {
     font-size: 10px;
     letter-spacing: 0.1em;
@@ -271,7 +273,14 @@
     margin-bottom: 4px;
   }
 
-  .geo-value { color: var(--text); word-break: break-all; line-height: 1.6; }
+  .geo-value {
+    color: var(--text);
+    line-height: 1.6;
+    white-space: pre-wrap;      /* keep \n, but wrap long lines */
+    overflow-wrap: anywhere;    /* break long coordinates/URLs */
+    word-break: break-word;
+    min-width: 0;
+  }
   .geo-value.muted { color: var(--muted); font-style: italic; }
   .geo-value.green { color: var(--accent); }
   .geo-value.amber { color: var(--warn); }
@@ -714,7 +723,7 @@
     $('geoIcon').textContent = icon;
     $('geoText').className = 'geo-value ' + textCls;
     $('geoText').textContent = text;
-    $('geoText').style.whiteSpace = 'pre';
+    // white-space gestito da CSS (pre-wrap): niente stile inline che sovrascrive
   }
   function setGeoError(msg) {
     setBox('error', '⚠️', 'red', msg);
