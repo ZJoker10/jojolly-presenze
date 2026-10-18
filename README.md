@@ -1,113 +1,140 @@
 # Check-in Presenze — Erodo OY
 
-Single-page attendance check-in app (Italian) that records a worker's **name**, **timestamp (ISO 8601 + local)**, and **GPS position**, then submits it to a Google Apps Script backend writing into Google Sheets.
+Attendance system for workers with **two interfaces**:
 
-Live demo: <https://jojolly26.github.io/checkin-presenze/>
+| Interface | File | Who | What it does |
+|---|---|---|---|
+| **Lavoratore** | [`index.html`](index.html) | Employee | **Entrata / Uscita** toggle, optional **notes**, GPS, offline queue, "your day" timeline |
+| **Admin** | [`admin.html`](admin.html) | You (owner) | PIN-protected dashboard: who's present now, sessions with worked hours, notes, GPS links, chronological event log |
 
-## What changed vs. the original
+Backend: Google Apps Script ([`apps-script/Code.gs`](apps-script/Code.gs)) writing to a Google Sheet.
 
-The original was a good-looking but unreliable form. This version fixes correctness, reliability, accessibility and privacy:
+## Employee interface
 
-| # | Problem in original | Fix |
-|---|----------------|-----|
-| 1 | `fetch(..., mode:'no-cors')` can never detect HTTP errors → showed "✓ registrato" even when nothing was saved | **Honest delivery states**: confirmed / sent-unconfirmed / queued. Server verification via `doGet(?v=<id>)` |
-| 2 | `Content-Type: application/json` is stripped in `no-cors` mode → Apps Script `e.postData.json` could be empty | Sends `text/plain` (simple request, no preflight); server parses `e.postData.contents` |
-| 3 | Timestamp was `toLocaleString()` only (device-local, ambiguous, no TZ) | Sends **`iso` (ISO 8601 UTC)** + local string + IANA timezone; server also records its own authoritative time |
-| 4 | No duplicate protection | Client-generated **UUID idempotency key**; server dedupes on the `id` column (idempotent response) |
-| 5 | GPS error was a dead end (submit disabled forever) | **"Riprova localizzazione"** button + **"Continua senza GPS"** escape hatch (`geoSkipped: yes` row) |
-| 6 | Poor accuracy (±200 m) silently accepted | Warns when `accuracy > 100 m` |
-| 7 | Offline worker lost the check-in | **Offline queue** in `localStorage`, auto-flushed on the `online` event |
-| 8 | Success was just a toast + form reset | **Receipt card**: name, time, coords, status, and check-in ID |
-| 9 | No `<label for>`, no `aria-live`, tiny low-contrast text | Proper labels, `aria-live` regions, raised `--muted` contrast, 16px inputs (no iOS zoom), `prefers-reduced-motion` support |
-| 10 | GDPR: silent employee location + device fingerprint | **Privacy notice** in the footer (legal basis, data list, retention, rights, opt-out via GPS skip) |
-| 11 | No meta description / OG / favicon / theme-color | Added all |
+- **Entrata / Uscita** segmented toggle (auto-switches to *Uscita* when a session is open).
+- **Open-session banner**: "In servizio da 2h 14m" with a live counter; session is persisted in `localStorage` (closing the browser doesn't lose it). Sessions open >16 h are flagged as forgotten.
+- **Notes field** (optional, max 500 chars) — e.g. "consegna materiali", "cantiere X".
+- **GPS** with retry, "continua senza GPS", and ±100 m accuracy warnings.
+- **Offline queue** — events are queued in `localStorage` and flushed on reconnect.
+- **Honest delivery states** — confirmed / sent-unconfirmed / queued (never fake success).
+- **"La tua giornata di oggi"** timeline — the worker sees their own events + durations + notes.
+- Receipt card with event type, duration (on check-out) and event ID.
+
+## Admin interface
+
+- **PIN login** — the PIN is a Script property (`ADMIN_PIN`), never shipped in the page code; session kept in `sessionStorage`.
+- **Stats row**: present now · total entrances · total exits · worked hours · missing check-outs.
+- **Sessions table**: per-worker entry, exit, duration, status (● still here / completed / ⚠ orphan exit), GPS link, notes.
+- **Chronological event log**: time, type, name, GPS, notes.
+- Date picker + manual refresh + **auto-refresh every 60 s**.
+- `noindex, nofollow` meta so the admin page isn't indexed.
+
+## Data model (one row per event)
+
+```
+id | session_id | event(IN/OUT) | timestamp_server | iso | timestamp_locale | tz
+   | nome | lat | lon | accuracy | geo_skipped | notes | maps_url | device_id
+```
+
+- `IN` starts a session (`session_id = id`), `OUT` references the `IN` id.
+- Dedupe on `id` (idempotency) server-side under a `LockService` lock.
+- Server also records its own authoritative timestamp.
 
 ## Architecture
 
 ```mermaid
 graph TD
-    A[Worker Browser<br/>index.html] -->|"POST text/plain JSON<br/>(simple request, no preflight)"| B[Google Apps Script Web App<br/>doPost — Code.gs]
-    A -->|"GET ?v=uuid (verification)"| B
-    B -->|"appendRow (dedupe on id)"| C[(Google Sheets<br/>Presenze)]
-    A -.->|"navigator.onLine = false"| D[(localStorage<br/>offline queue)]
-    D -.->|"online event / page load<br/>flushQueue()"| A
+    A[Employee Page<br/>index.html — Entrata/Uscita + notes] -->|"POST text/plain JSON"| B[Google Apps Script<br/>Code.gs — doPost/doGet]
+    C[Admin Dashboard<br/>admin.html — PIN protected] -->|"GET ?events=date&amp;pin=PIN"| B
+    A -->|"GET ?v=uuid (verify)<br/>GET ?mine=name (timeline)"| B
+    B -->|appendRow + dedupe on id| D[(Google Sheets<br/>Presenze)]
+    A -.->|"offline"| E[(localStorage<br/>queue + open session)]
+    E -.->|"online event"| A
+    B -->|"doGet returns JSON<br/>CORS-friendly"| C
 
     classDef Primary fill:#00ffff,color:#000,stroke:#080d1a
     classDef Gateway fill:#ee82ff,color:#fff,stroke:#080d1a
     classDef DataLayer fill:#ff1493,color:#fff,stroke:#080d1a
     classDef External fill:#444,color:#ccc,stroke:#666
 
-    class A Primary
+    class A,C Primary
     class B Gateway
-    class C DataLayer
-    class D DataLayer
+    class D,E DataLayer
 
     linkStyle default stroke:#00ffff,stroke-width:2px
 ```
 
-**Legend:** cyan = primary module (the page) · magenta-pink = data layer (Sheets, local queue) · violet = gateway (Apps Script) · gray = external.
+**Legend:** cyan = primary modules (the two interfaces) · violet = gateway (Apps Script) · pink = data layer (Sheet, local storage).
 
-### Delivery states
+### Session lifecycle
 
 ```mermaid
 flowchart LR
-    S[Submit] --> O{Online?}
-    O -->|No| Q[Queued<br/>⏳ banner + receipt]
-    O -->|Yes| P[POST no-cors]
-    P -->|network error| Q
-    P -->|ok| V{GET verify ?v=id}
-    V -->|ok| C[Confirmed<br/>✓ registrato]
-    V -->|fails| U[Sent unconfirmed<br/>⚠ honest warning]
-    Q -->|online event| P
+    N[No session] -->|"Entrata ✓"| O[(open session<br/>localStorage)]
+    O -->|"Uscita ✓"| C[Closed — duration<br/>written to Sheet]
+    O -->|">16h forgotten| F[Flagged, auto-closed<br/>⚠ warning toast]
+    O -->|offline| Q[(queued)]
+    Q -->|reconnected| O
 
     classDef Primary fill:#00ffff,color:#000,stroke:#080d1a
     classDef Gateway fill:#ee82ff,color:#fff,stroke:#080d1a
     classDef DataLayer fill:#ff1493,color:#fff,stroke:#080d1a
-    class S Primary
-    class P,V Gateway
-    class Q,C,U DataLayer
+    class N,C,F Primary
+    class Q Primary
+    class O DataLayer
 ```
 
-## Backend setup
+## Setup
+
+### 1. Backend
 
 1. Create a Google Sheet.
 2. **Extensions → Apps Script**, paste [`apps-script/Code.gs`](apps-script/Code.gs).
-3. **Deploy → New deployment → Web app**
-   - Execute as: **Me**
-   - Who has access: **Anyone**
-4. Copy the `/exec` URL into `SCRIPT_URL` in `index.html`.
+3. **Project Settings → Script properties** → add `ADMIN_PIN = <your-PIN>` (this unlocks `admin.html`).
+4. **Deploy → New deployment → Web app** — Execute as: *Me*, Access: *Anyone*.
+5. Copy the `/exec` URL into `SCRIPT_URL` in **both** `index.html` and `admin.html`.
 
-The backend provides:
-- `doPost` — validates, **dedupes on `id`**, appends a row (server timestamp included).
-- `doGet(?v=<id>)` — returns `{ok:true}` when the check-in exists (used for real delivery confirmation).
+> ⚠️ The current `SCRIPT_URL` still points to the **old v1 deployment**. Redeploy with `Code.gs` v2 — otherwise entry/exit events and the admin dashboard won't work (the old script has no `?events=` / `?mine=` endpoints).
 
-> ⚠️ The current `SCRIPT_URL` points at the **old** deployment. Until you redeploy with `Code.gs`, verification will fall back to *"inviato, non confermato"* — which is the honest behavior (the old script has no `doGet`).
+### 2. GitHub Pages
 
-## Local development
+Already enabled: **https://zjoker10.github.io/jojolly-presenze/**
+
+- Employee link → `/` (`index.html`)
+- Admin link → `/admin.html` (also reachable via the "🛡 Admin" button)
+
+## Security notes & limits
+
+- The admin PIN travels as a query parameter over **HTTPS** to Apps Script — fine for a small team, but it is a **shared secret, not real auth**. Don't reuse an important password; rotate it via the Script property anytime.
+- The worker timeline (`?mine=Name`) is public-by-URL; the sheet itself is only readable by the account owner.
+- For stronger security, move the backend behind Google Identity or an Apps Script `doGet` token check.
+
+## GDPR checklist
+
+Built in: privacy notice on the worker page (data list, purpose, retention, rights, GPS opt-out via "Continua senza GPS").
+
+Still on you before production:
+
+- [ ] Document the **legal basis** (art. 6 GDPR) for tracking employee location.
+- [ ] Set and enforce a **retention period** (e.g. delete rows older than 12 months via a daily trigger).
+- [ ] Restrict **Sheet access** to only the people who need it.
+- [ ] The device fingerprint is a truncated SHA-256 duplicate-guard — remove it if you don't need it.
+
+## Local dev
 
 ```bash
-# any static server works
 python3 -m http.server 8000 -d .
-# open http://localhost:8000
+# http://localhost:8000        → employee
+# http://localhost:8000/admin  → admin
 ```
-
-Deploy to GitHub Pages: push to `main`, enable Pages (Settings → Pages → Deploy from branch → `main` / root).
-
-## Privacy / GDPR
-
-Employee location + name is personal data under **Reg. UE 2016/679**. The page ships a built-in notice (footer `<details>`). Before production use:
-
-- Confirm the **legal basis** (art. 6 — likely contract/legal obligation or legitimate interest) and document it.
-- Set a **retention period** for the sheet rows and delete expired data.
-- The device fingerprint is a truncated SHA-256 used only as a **duplicate-send guard**; it is not a tracking ID. Remove it entirely if not needed.
-- GPS is **optional** — workers can submit without it.
 
 ## File layout
 
 ```
 jojolly-presenze/
-├── index.html              # the whole app (UI + logic, single file)
-├── apps-script/Code.gs     # backend: doPost/doGet + dedupe + sheet writes
+├── index.html              # employee interface
+├── admin.html              # admin dashboard (PIN)
+├── apps-script/Code.gs     # backend v2 (IN/OUT, notes, admin API)
 ├── README.md
-└── .github/workflows/      # (optional) CI placeholder
+└── .gitignore
 ```

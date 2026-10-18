@@ -4,10 +4,10 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Check-in Presenze — Erodo OY</title>
-<meta name="description" content="Registra la tua presenza lavorativa con nome, orario e posizione GPS." />
+<meta name="description" content="Registra entrata e uscita con nome, note, orario e posizione GPS." />
 <meta name="theme-color" content="#0d0f14" />
 <meta property="og:title" content="Check-in Presenze — Erodo OY" />
-<meta property="og:description" content="Compila il form per registrare la tua presenza." />
+<meta property="og:description" content="Registra entrata e uscita lavorativa." />
 <meta property="og:type" content="website" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%85%3C/text%3E%3C/svg%3E" />
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
@@ -22,6 +22,7 @@
     --muted: #8b93a5;
     --danger: #ff4f6a;
     --warn: #ffc46b;
+    --info: #6bb8ff;
     --radius: 12px;
   }
 
@@ -123,9 +124,75 @@
   .subtitle {
     font-size: 12px;
     color: var(--muted);
-    margin-bottom: 32px;
+    margin-bottom: 24px;
     letter-spacing: 0.02em;
   }
+
+  .admin-link {
+    position: absolute;
+    top: 18px;
+    right: 22px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 4px 10px;
+    transition: color .2s, border-color .2s;
+  }
+  .admin-link:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── mode toggle ── */
+  .mode-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px;
+    margin-bottom: 24px;
+  }
+  .mode-toggle button {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 11px 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: background .2s, color .2s;
+  }
+  .mode-toggle button.active[data-mode="IN"]  { background: var(--accent); color: #000; }
+  .mode-toggle button.active[data-mode="OUT"] { background: var(--info); color: #000; }
+  .mode-toggle button:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ── session banner ── */
+  .session-banner {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: rgba(107,184,255,0.08);
+    border: 1px solid rgba(107,184,255,0.35);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-size: 12px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+  .session-banner.show { display: flex; }
+  .session-banner .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--info); flex-shrink: 0;
+    animation: pulse 2s infinite;
+  }
+  .session-banner b { color: var(--info); font-weight: 500; }
 
   .field { margin-bottom: 20px; }
 
@@ -138,7 +205,7 @@
     margin-bottom: 8px;
   }
 
-  input[type="text"] {
+  input[type="text"], textarea {
     width: 100%;
     background: var(--bg);
     border: 1px solid var(--border);
@@ -151,12 +218,14 @@
     transition: border-color 0.2s, box-shadow 0.2s;
   }
 
-  input[type="text"]:focus {
+  textarea { min-height: 76px; resize: vertical; font-size: 15px; line-height: 1.5; }
+
+  input[type="text"]:focus, textarea:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(0,229,160,0.12);
   }
 
-  input[type="text"]::placeholder { color: var(--muted); }
+  input[type="text"]::placeholder, textarea::placeholder { color: var(--muted); }
 
   .datetime-box {
     background: var(--bg);
@@ -167,7 +236,6 @@
     color: var(--accent);
     letter-spacing: 0.04em;
   }
-
   .datetime-box .tz {
     display: block;
     font-size: 10px;
@@ -188,7 +256,6 @@
     font-size: 12px;
     transition: border-color 0.3s;
   }
-
   .geo-box.acquiring { border-color: var(--border); }
   .geo-box.success   { border-color: rgba(0,229,160,0.4); }
   .geo-box.warn      { border-color: rgba(255,196,107,0.5); }
@@ -245,20 +312,14 @@
     transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
     box-shadow: 0 0 24px rgba(0,229,160,0.25);
   }
+  button[type="submit"].out { background: var(--info); box-shadow: 0 0 24px rgba(107,184,255,0.25); }
 
   button[type="submit"]:hover:not(:disabled) {
     opacity: 0.9;
     transform: translateY(-1px);
-    box-shadow: 0 0 36px rgba(0,229,160,0.35);
   }
-
   button[type="submit"]:active:not(:disabled) { transform: translateY(0); }
-
-  button[type="submit"]:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    box-shadow: none;
-  }
+  button[type="submit"]:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 
   .receipt {
     margin-top: 20px;
@@ -285,6 +346,42 @@
   }
   .queue-banner.show { display: block; }
 
+  /* ── timeline ── */
+  .timeline { margin-top: 24px; display: none; }
+  .timeline.show { display: block; }
+  .timeline h2 {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+    font-weight: 500;
+    font-family: 'DM Mono', monospace;
+  }
+  .timeline ul { list-style: none; }
+  .timeline li {
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    font-size: 12px;
+    padding: 7px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .timeline li:last-child { border-bottom: none; }
+  .timeline .ev {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    font-weight: 500;
+    padding: 1px 7px;
+    border-radius: 100px;
+    flex-shrink: 0;
+  }
+  .timeline .ev.IN  { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(0,229,160,0.3); }
+  .timeline .ev.OUT { background: rgba(107,184,255,0.1); color: var(--info); border: 1px solid rgba(107,184,255,0.3); }
+  .timeline .tm { color: var(--text); }
+  .timeline .nt { color: var(--muted); font-size: 11px; }
+  .timeline .dur { margin-left: auto; color: var(--warn); font-size: 11px; white-space: nowrap; }
+
   .toast {
     position: fixed;
     bottom: 24px;
@@ -302,7 +399,6 @@
     pointer-events: none;
     z-index: 100;
   }
-
   .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
   .toast.success { border-color: rgba(0,229,160,0.4); color: var(--accent); }
   .toast.warning { border-color: rgba(255,196,107,0.4); color: var(--warn); }
@@ -337,7 +433,6 @@
   footer details { text-align: left; background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 16px 18px; margin-top: 10px; }
   footer ul { padding-left: 18px; margin-top: 6px; }
-  footer a { color: var(--accent); }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -347,9 +442,22 @@
 <body>
 
 <div class="card">
+  <a class="admin-link" href="admin.html" title="Bacheca responsabile">🛡 Admin</a>
   <div class="tag">Erodo OY — Presenze</div>
-  <h1>Check-in<br/>lavoratore</h1>
-  <p class="subtitle">Compila il form per registrare la tua presenza</p>
+  <h1>Presenze<br/>lavoratore</h1>
+  <p class="subtitle">Registra entrata o uscita con nome, note e posizione</p>
+
+  <!-- ENTRATA / USCITA -->
+  <div class="mode-toggle" role="radiogroup" aria-label="Tipo di evento">
+    <button type="button" data-mode="IN"  id="modeIn"  class="active" role="radio" aria-checked="true">● Entrata</button>
+    <button type="button" data-mode="OUT" id="modeOut" role="radio" aria-checked="false">○ Uscita</button>
+  </div>
+
+  <!-- SESSIONE APERTA -->
+  <div class="session-banner" id="sessionBanner" aria-live="polite">
+    <span class="dot"></span>
+    <span id="sessionText"></span>
+  </div>
 
   <form id="checkinForm" novalidate>
 
@@ -362,8 +470,7 @@
 
     <div class="field">
       <label id="datetimeLabel">Data e ora</label>
-      <div class="datetime-box" id="datetimeDisplay" aria-live="off">—</div>
-      <span class="tz" style="display:none"></span>
+      <div class="datetime-box" id="datetimeDisplay">—<span class="tz" id="tzLine"></span></div>
     </div>
 
     <div class="field">
@@ -382,14 +489,26 @@
       </div>
     </div>
 
+    <div class="field">
+      <label for="notes">Note (facoltative)</label>
+      <textarea id="notes" name="notes" maxlength="500"
+        placeholder="es. consegna materiali, straordinario, luogo cantiere…"></textarea>
+    </div>
+
     <button type="submit" id="submitBtn" disabled>
-      Invia Check-in
+      Registra entrata
     </button>
 
     <div class="queue-banner" id="queueBanner" aria-live="polite"></div>
     <div class="receipt" id="receipt" aria-live="polite"></div>
 
   </form>
+
+  <!-- TIMELINE DI OGGI -->
+  <section class="timeline" id="timeline" aria-label="Eventi di oggi">
+    <h2 id="timelineTitle">La tua giornata di oggi</h2>
+    <ul id="timelineList"></ul>
+  </section>
 </div>
 
 <footer>
@@ -398,12 +517,13 @@
     <p>Al momento dell'invio vengono trattati i seguenti dati personali (Reg. UE 2016/679 — GDPR):</p>
     <ul>
       <li><b>Nome e cognome</b> — identificativo del lavoratore;</li>
-      <li><b>Data e ora</b> — orario ISO 8601 con fuso orario (più orario locale);</li>
-      <li><b>Posizione GPS</b> — latitudine, longitudine e precisione (metri);</li>
-      <li><b>Identificativo dispositivo</b> — hash SHA-256 di caratteristiche del browser, usato per prevenire doppio invio, non per il tracciamento continuo.</li>
+      <li><b>Tipo evento</b> — entrata o uscita, con orario ISO 8601 + fuso orario;</li>
+      <li><b>Note</b> — testo facoltativo inserito dal lavoratore (max 500 caratteri);</li>
+      <li><b>Posizione GPS</b> — latitudine, longitudine e precisione (metri), facoltativa;</li>
+      <li><b>Identificativo dispositivo</b> — hash SHA-256, usato solo per prevenire doppio invio.</li>
     </ul>
     <p>I dati sono inviati a Google Apps Script / Google Sheets (Google Ireland Limited) e conservati per la sola durata necessaria alla gestione delle presenze.
-    Titolare del trattamento: Erodo OY. L'uso della posizione è facoltativo: puoi procedere senza GPS tramite il link "Continua senza GPS".
+    Titolare del trattamento: Erodo OY. L'uso della posizione è facoltativo.
     Per esercitare i diritti previsti dagli artt. 15–22 GDPR contatta il titolare.</p>
   </details>
 </footer>
@@ -414,14 +534,16 @@
   'use strict';
 
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzueT0JKWHpNLL8AgM2p62_3LtClxzMBK3SNaelSBESjStQ3FC9Va2DOzBYKc5bwWje/exec';
-  const QUEUE_KEY  = 'checkin_queue_v1';
-  const ACC_WARN_M = 100;   // precisione > 100 m → avviso
+  const QUEUE_KEY    = 'checkin_queue_v2';
+  const SESSION_KEY  = 'checkin_session_v1';
+  const ACC_WARN_M = 100;
   const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'locale';
 
   let geoData = null;
   let geoSkipped = false;
+  let mode = 'IN';                 // IN | OUT
+  let openSession = null;          // { id, nome, iso } — entrata aperta
 
-  // ── HELPERS ─────────────────────────────────────────────────────────────────
   const $ = id => document.getElementById(id);
 
   function uuid() {
@@ -432,7 +554,13 @@
     });
   }
 
-  // ── DEVICE FINGERPRINT (solo anti doppio-invio, hex troncato) ───────────────
+  function todayStr(d = new Date()) {
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
+  // ── DEVICE FINGERPRINT ──────────────────────────────────────────────────────
   async function getDeviceFingerprint() {
     try {
       const raw = [
@@ -451,19 +579,70 @@
     }
   }
 
+  // ── SESSIONE (entrata aperta su questo dispositivo) ─────────────────────────
+  function loadSession() {
+    try { return JSON.parse(localStorage.getItem(SESSION_KEY)) || null; }
+    catch { return null; }
+  }
+  function saveSession(s) {
+    try {
+      if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+      else localStorage.removeItem(SESSION_KEY);
+    } catch {}
+    renderSession();
+  }
+
+  function renderSession() {
+    const banner = $('sessionBanner');
+    if (openSession) {
+      const started = new Date(openSession.iso);
+      const mins = Math.max(0, Math.round((Date.now() - started.getTime()) / 60000));
+      const h = Math.floor(mins / 60), m = mins % 60;
+      $('sessionText').innerHTML =
+        `In servizio da <b>${h}h ${String(m).padStart(2, '0')}m</b> — entrata delle ` +
+        `${started.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}` +
+        (openSession.nome ? ` (${escapeHtml(openSession.nome)})` : '');
+      banner.classList.add('show');
+      setMode('OUT');
+    } else {
+      banner.classList.remove('show');
+      setMode('IN');
+    }
+  }
+  setInterval(() => { if (openSession) renderSession(); }, 30000); // aggiorna contatore
+
+  // ── MODO ENTRATA / USCITA ───────────────────────────────────────────────────
+  function setMode(m) {
+    mode = m;
+    $('modeIn').classList.toggle('active', m === 'IN');
+    $('modeOut').classList.toggle('active', m === 'OUT');
+    $('modeIn').setAttribute('aria-checked', m === 'IN');
+    $('modeOut').setAttribute('aria-checked', m === 'OUT');
+    const btn = $('submitBtn');
+    btn.classList.toggle('out', m === 'OUT');
+    btn.textContent = (m === 'IN') ? 'Registra entrata' : 'Registra uscita';
+    // auto-fill name from open session when switching to OUT
+    if (m === 'OUT' && openSession && openSession.nome && !$('nome').value.trim()) {
+      $('nome').value = openSession.nome;
+    }
+    updateSubmitState();
+  }
+  $('modeIn').addEventListener('click', () => setMode('IN'));
+  $('modeOut').addEventListener('click', () => setMode('OUT'));
+
   // ── CLOCK ───────────────────────────────────────────────────────────────────
   function updateClock() {
     const now = new Date();
-    $('datetimeDisplay').textContent =
+    $('datetimeDisplay').innerHTML =
       now.toLocaleDateString('it-IT', { weekday:'long', day:'2-digit', month:'long', year:'numeric' })
       + '  —  '
       + now.toLocaleTimeString('it-IT')
-      + '  (' + TZ + ')';
+      + `<span class="tz">fuso orario: ${TZ}</span>`;
   }
   updateClock();
   setInterval(updateClock, 1000);
 
-  // ── GEOLOCALIZZAZIONE ───────────────────────────────────────────────────────
+  // ── GEO ─────────────────────────────────────────────────────────────────────
   function initGeo() {
     geoSkipped = false;
     geoData = null;
@@ -480,12 +659,10 @@
       pos => {
         const { latitude: lat, longitude: lon, accuracy } = pos.coords;
         geoData = { lat, lon, accuracy };
-
         const poor = accuracy > ACC_WARN_M;
         setBox(poor ? 'warn' : 'success', '📍', poor ? 'amber' : 'green',
           `${lat.toFixed(6)}, ${lon.toFixed(6)}\nPrecisione: ±${Math.round(accuracy)} m`
           + (poor ? '\n⚠ Precisione scarsa: verifica di essere all\'aperto.' : ''));
-
         const link = $('geoLink');
         link.href = `https://www.google.com/maps?q=${lat},${lon}`;
         link.hidden = false;
@@ -512,7 +689,6 @@
     $('geoText').textContent = text;
     $('geoText').style.whiteSpace = 'pre';
   }
-
   function setGeoError(msg) {
     setBox('error', '⚠️', 'red', msg);
     $('geoRetry').hidden = false;
@@ -531,7 +707,7 @@
     geoData = null;
     $('geoLink').hidden = true;
     $('geoSkip').hidden = true;
-    setBox('warn', '📍', 'amber', 'Posizione non acquisita — il check-in sarà registrato SENZA GPS.');
+    setBox('warn', '📍', 'amber', 'Posizione non acquisita — evento registrato SENZA GPS.');
     updateSubmitState();
   });
   $('nome').addEventListener('input', updateSubmitState);
@@ -548,63 +724,46 @@
   function showQueueBanner(n) {
     const b = $('queueBanner');
     if (n > 0) {
-      b.textContent = `⏳ ${n} check-in in attesa di invio (connessione assente). Saranno inviati automaticamente.`;
+      b.textContent = `⏳ ${n} eventi in attesa di invio (connessione assente). Saranno inviati automaticamente.`;
       b.classList.add('show');
-    } else {
-      b.classList.remove('show');
-      b.textContent = '';
-    }
+    } else { b.classList.remove('show'); b.textContent = ''; }
   }
 
   // ── INVIO + VERIFICA ────────────────────────────────────────────────────────
-  // POST con Content-Type "text/plain" (simple request, niente preflight):
-  // il body JSON arriva integro e Apps Script lo legge con e.postData.contents.
-  async function postCheckin(payload) {
-    const res = await fetch(SCRIPT_URL, {
+  async function postEvent(payload) {
+    return fetch(SCRIPT_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload),
     });
-    // res è opaco: possiamo rilevare solo errori di rete, non errori HTTP.
-    return res;
   }
-
-  // Verifica lato server tramite doGet (?v=<id>). Se l'endpoint non espone doGet
-  // la chiamata fallisce e restituiamo "inviato non confermato" (onesto).
-  async function verifyCheckin(id) {
+  async function verifyEvent(id) {
     try {
       const res = await fetch(`${SCRIPT_URL}?v=${encodeURIComponent(id)}`, { method: 'GET' });
       if (!res.ok) return false;
       const txt = await res.text();
-      return txt.includes(id) || txt.includes('"ok"');
-    } catch {
-      return false;
-    }
+      return txt.includes(id) || txt.includes('"ok":true');
+    } catch { return false; }
   }
-
   async function sendPayload(payload) {
-    await postCheckin(payload);
-    // piccolo delay: il back-end Apps Script può essere lento ad attivarsi
+    await postEvent(payload);
     await new Promise(r => setTimeout(r, 1500));
-    return verifyCheckin(payload.id);
+    return verifyEvent(payload.id);
   }
-
   async function flushQueue() {
     const q = readQueue();
     if (q.length === 0) return;
     const remaining = [];
     for (const p of q) {
-      try {
-        await postCheckin(p);
-      } catch {
-        remaining.push(p);
-      }
+      try { await postEvent(p); } catch { remaining.push(p); }
     }
     writeQueue(remaining);
-    if (remaining.length === 0) showToast('✓ Check-in in coda inviati.', 'success');
+    if (remaining.length === 0) {
+      showToast('✓ Eventi in coda inviati.', 'success');
+      loadMyTimeline();
+    }
   }
-
   window.addEventListener('online', flushQueue);
 
   // ── SUBMIT ──────────────────────────────────────────────────────────────────
@@ -614,85 +773,108 @@
     const nome = $('nome').value.trim();
     if (!nome) { showToast('Inserisci nome e cognome.', 'error'); return; }
     if (!geoData && !geoSkipped) { showToast('Posizione GPS non disponibile.', 'error'); return; }
+    if (mode === 'OUT' && !openSession) {
+      // nessuna entrata aperta su questo dispositivo → registrazione libera
+      if (!confirm('Nessuna entrata aperta trovata su questo dispositivo.\nRegistrare comunque l\'uscita?')) return;
+    }
 
     const btn = $('submitBtn');
+    const prevLabel = btn.textContent;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>Invio…';
 
     const now = new Date();
+    const sessionId = (mode === 'OUT' && openSession) ? openSession.id : null;
     const payload = {
-      id: uuid(),                              // idempotency key (dedupe lato server)
+      id: uuid(),
+      sessionId: sessionId || undefined,   // server: IN → id stesso, OUT → id dell'IN
+      event: mode,
       nome,
-      iso: now.toISOString(),                  // timestamp ISO 8601 UTC (affidabile)
-      timestamp: now.toLocaleString('it-IT'),   // timestamp locale (leggibile)
+      iso: now.toISOString(),
+      timestamp: now.toLocaleString('it-IT'),
       tz: TZ,
+      notes: $('notes').value.trim(),
       lat:       geoData ? geoData.lat : null,
       lon:       geoData ? geoData.lon : null,
       accuracy:  geoData ? geoData.accuracy : null,
       geoSkipped,
       mapsUrl:   geoData ? `https://www.google.com/maps?q=${geoData.lat},${geoData.lon}` : '',
       deviceId:  await getDeviceFingerprint(),
-      ua: navigator.userAgent,
     };
 
-    const restoreBtn = () => { btn.textContent = 'Invia Check-in'; updateSubmitState(); };
+    const restoreBtn = () => { btn.textContent = prevLabel; updateSubmitState(); };
 
-    // Offline → metti in coda e riprova appena torna la rete
     if (navigator.onLine === false) {
-      const q = readQueue();
-      q.push(payload);
-      writeQueue(q);
+      const q = readQueue(); q.push(payload); writeQueue(q);
+      if (mode === 'IN') saveSession({ id: payload.id, nome, iso: payload.iso });
+      else saveSession(null);
       showReceipt(payload, 'queued');
-      showToast('📡 Offline — check-in salvato in coda.', 'warning');
+      showToast('📡 Offline — evento salvato in coda.', 'warning');
       $('checkinForm').reset();
       restoreBtn();
       return;
     }
 
     try {
-      const confirmed = await sendPayload(payload);
+      const res = await fetch(SCRIPT_URL, {
+        method: 'POST', mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload),
+      });
+      await new Promise(r => setTimeout(r, 1500));
+      const confirmed = await verifyEvent(payload.id);
 
-      if (confirmed) {
-        showReceipt(payload, 'confirmed');
-        showToast('✓ Check-in registrato!', 'success');
-      } else {
-        // Inviato ma non confermato: non mentiamo all'utente
-        showReceipt(payload, 'unconfirmed');
-        showToast('⚠ Inviato, conferma del server non disponibile.', 'warning');
-      }
+      // sessione locale: apri con IN, chiudi con OUT (indipendentemente dalla conferma)
+      if (mode === 'IN') saveSession({ id: payload.id, nome, iso: payload.iso });
+      else saveSession(null);
+
+      showReceipt(payload, confirmed ? 'confirmed' : 'unconfirmed',
+        (mode === 'OUT' && sessionId) ? minutesBetween(sessionId, payload.iso) : null);
+      showToast(confirmed ? '✓ Registrato!' : '⚠ Inviato, conferma non disponibile.',
+                confirmed ? 'success' : 'warning');
 
       $('checkinForm').reset();
       $('receipt').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       restoreBtn();
-      setTimeout(() => { initGeo(); }, 1200);
+      setTimeout(() => { initGeo(); loadMyTimeline(); }, 1200);
     } catch (err) {
-      // Errore di rete → coda
       const q = readQueue();
       if (!q.some(p => p.id === payload.id)) q.push(payload);
       writeQueue(q);
+      if (mode === 'IN') saveSession({ id: payload.id, nome, iso: payload.iso });
       showReceipt(payload, 'queued');
-      showToast('Errore di rete — check-in salvato in coda.', 'warning');
+      showToast('Errore di rete — evento salvato in coda.', 'warning');
       $('checkinForm').reset();
       restoreBtn();
     }
   });
 
-  function showReceipt(p, status) {
+  function minutesBetween(startIso, endIso) {
+    return Math.max(0, Math.round((Date.parse(endIso) - Date.parse(startIso)) / 60000));
+  }
+
+  function showReceipt(p, status, durationMin) {
     const box = $('receipt');
     const statusLine = {
       confirmed:   '<b>✓ Confermato dal server</b>',
       unconfirmed: '<b style="color:var(--warn)">⚠ Inviato, non confermato</b>',
       queued:      '<b style="color:var(--warn)">⏳ In coda (offline)</b>',
     }[status];
+    const evLabel = p.event === 'IN'
+      ? '<b style="color:var(--accent)">ENTRATA</b>'
+      : '<b style="color:var(--info)">USCITA</b>';
     const coords = (p.lat != null)
       ? `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)} ±${Math.round(p.accuracy)} m`
       : 'non acquisita';
-    box.innerHTML =
-      `${statusLine}<br>` +
+    let html =
+      `${statusLine} · ${evLabel}<br>` +
       `<b>${escapeHtml(p.nome)}</b><br>` +
       `${escapeHtml(new Date(p.iso).toLocaleString('it-IT'))} (${escapeHtml(p.tz)})<br>` +
-      `📍 ${escapeHtml(coords)}<br>` +
-      `<span class="rid">ID: ${escapeHtml(p.id)}</span>`;
+      `📍 ${escapeHtml(coords)}`;
+    if (p.notes) html += `<br>📝 ${escapeHtml(p.notes)}`;
+    if (durationMin != null) html += `<br>⏱ Durata: <b>${Math.floor(durationMin / 60)}h ${String(durationMin % 60).padStart(2, '0')}m</b>`;
+    html += `<br><span class="rid">ID: ${escapeHtml(p.id)}</span>`;
+    box.innerHTML = html;
     box.classList.add('show');
   }
 
@@ -709,10 +891,44 @@
     showToast._t = setTimeout(() => { t.className = `toast ${type}`; }, 4000);
   }
 
+  // ── TIMELINE "LA TUA GIORNATA" ──────────────────────────────────────────────
+  async function loadMyTimeline() {
+    const nome = $('nome').value.trim() || (openSession && openSession.nome) || '';
+    if (!nome) { $('timeline').classList.remove('show'); return; }
+    try {
+      const url = `${SCRIPT_URL}?mine=${encodeURIComponent(nome)}&date=${todayStr()}`;
+      const res = await fetch(url, { method: 'GET' });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.ok || !data.events || data.events.length === 0) return;
+
+      $('timelineTitle').textContent = `La tua giornata di oggi (${data.events.length} eventi)`;
+      $('timelineList').innerHTML = data.events.map(ev => {
+        const t = new Date(ev.iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+        const dur = ev.durationMin != null
+          ? `<span class="dur">${Math.floor(ev.durationMin / 60)}h ${String(ev.durationMin % 60).padStart(2, '0')}m</span>` : '';
+        const nt = ev.notes ? `<span class="nt">— ${escapeHtml(ev.notes)}</span>` : '';
+        return `<li><span class="ev ${ev.event}">${ev.event === 'IN' ? 'ENTRATA' : 'USCITA'}</span>` +
+               `<span class="tm">${t}</span> ${nt} ${dur}</li>`;
+      }).join('');
+      $('timeline').classList.add('show');
+    } catch { /* silenzioso */ }
+  }
+  $('nome').addEventListener('change', loadMyTimeline);
+
   // ── BOOT ────────────────────────────────────────────────────────────────────
+  openSession = loadSession();
+  if (openSession && (Date.now() - Date.parse(openSession.iso)) > 16 * 3600 * 1000) {
+    // sessione "vecchia" (>16h): probabilmente dimenticata → chiudi
+    saveSession(null);
+    openSession = null;
+    showToast('Sessione precedente trovata: controlla la puntuale chiusura.', 'warning');
+  }
   showQueueBanner(readQueue().length);
+  renderSession();
   initGeo();
   flushQueue();
+  loadMyTimeline();
 </script>
 </body>
 </html>

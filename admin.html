@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin — Check-in Presenze | Erodo OY</title>
+<meta name="description" content="Bacheca responsabile: presenze, orari e note dei lavoratori." />
+<meta name="theme-color" content="#0d0f14" />
+<meta name="robots" content="noindex, nofollow" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9B%A1%3C/text%3E%3C/svg%3E" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #161921;
+    --border: #2a2f3d;
+    --accent: #00e5a0;
+    --accent-dim: rgba(0,229,160,0.12);
+    --text: #e8eaf0;
+    --muted: #8b93a5;
+    --danger: #ff4f6a;
+    --warn: #ffc46b;
+    --info: #6bb8ff;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    padding: 32px 16px 64px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 48px 48px;
+    opacity: 0.25;
+    pointer-events: none;
+  }
+
+  .wrap { max-width: 980px; margin: 0 auto; position: relative; z-index: 1; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+
+  .tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); background: var(--accent-dim);
+    border: 1px solid rgba(0,229,160,0.25); border-radius: 100px;
+    padding: 4px 12px; margin-bottom: 12px;
+  }
+  h1 { font-family: 'Syne', sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -0.02em; }
+  .sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  .back {
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); text-decoration: none;
+    border: 1px solid var(--border); border-radius: 100px; padding: 8px 14px;
+    transition: color .2s, border-color .2s;
+  }
+  .back:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* login */
+  .login {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 40px 36px; max-width: 400px; margin: 8vh auto 0;
+    text-align: center;
+  }
+  .login input {
+    width: 100%; margin-top: 18px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--text); font-family: 'DM Mono', monospace; font-size: 18px;
+    letter-spacing: 0.3em; text-align: center; padding: 13px; outline: none;
+  }
+  .login input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,229,160,0.12); }
+  .login .err { color: var(--danger); font-size: 12px; margin-top: 12px; min-height: 16px; }
+
+  button.primary {
+    margin-top: 16px; width: 100%; padding: 13px;
+    background: var(--accent); color: #000;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    border: none; border-radius: var(--radius); cursor: pointer;
+  }
+  button.primary:hover { opacity: .9; }
+  button.primary:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* toolbar */
+  .toolbar {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 20px;
+  }
+  .toolbar label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .toolbar input[type="date"] {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px;
+    padding: 8px 10px; outline: none; color-scheme: dark;
+  }
+  .toolbar .spacer { flex: 1; }
+  .toolbar .meta { font-size: 11px; color: var(--muted); }
+  .toolbar button.small {
+    background: transparent; border: 1px solid var(--border); color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .06em;
+    text-transform: uppercase; padding: 8px 14px; border-radius: 8px; cursor: pointer;
+    transition: border-color .2s, color .2s;
+  }
+  .toolbar button.small:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* stats */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px;
+  }
+  .stat .k { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .stat .v { font-family: 'Syne', sans-serif; font-size: 30px; font-weight: 800; margin-top: 6px; }
+  .stat .v.green { color: var(--accent); }
+  .stat .v.blue  { color: var(--info); }
+  .stat .v.amber { color: var(--warn); }
+
+  /* table */
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden; margin-bottom: 20px;
+  }
+  .panel h2 {
+    font-family: 'DM Mono', monospace; font-weight: 500; font-size: 11px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+  .panel h2 .count { color: var(--accent); }
+
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left; font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); font-weight: 500; padding: 12px 20px;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  td { padding: 12px 20px; border-bottom: 1px solid rgba(42,47,61,0.6); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(0,229,160,0.03); }
+
+  .badge {
+    display: inline-block; font-size: 10px; letter-spacing: .08em;
+    padding: 2px 9px; border-radius: 100px; font-weight: 500; white-space: nowrap;
+  }
+  .badge.IN  { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(0,229,160,0.3); }
+  .badge.OUT { background: rgba(107,184,255,0.1); color: var(--info); border: 1px solid rgba(107,184,255,0.3); }
+  .badge.open { background: rgba(255,196,107,0.1); color: var(--warn); border: 1px solid rgba(255,196,107,0.35); }
+  .badge.gps  { background: rgba(0,229,160,0.08); color: var(--accent); border: 1px solid rgba(0,229,160,0.2); }
+  .badge.nogps{ background: rgba(255,79,106,0.08); color: var(--danger); border: 1px solid rgba(255,79,106,0.3); }
+
+  .notes { color: var(--muted); font-size: 12px; font-style: italic; max-width: 240px; }
+  .muted { color: var(--muted); font-size: 12px; }
+  a.maplink { color: var(--accent); text-decoration: none; font-size: 11px; }
+  a.maplink:hover { text-decoration: underline; }
+  .dur { color: var(--warn); white-space: nowrap; }
+
+  .empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+
+  .err-banner {
+    display: none; background: rgba(255,79,106,0.08);
+    border: 1px solid rgba(255,79,106,0.4); color: var(--danger);
+    border-radius: var(--radius); padding: 14px 16px; font-size: 13px; margin-bottom: 20px;
+  }
+  .err-banner.show { display: block; }
+
+  footer { text-align: center; font-size: 11px; color: var(--muted); margin-top: 30px; line-height: 1.7; }
+
+  @media (max-width: 640px) {
+    h1 { font-size: 24px; }
+    td, th { padding-left: 12px; padding-right: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ─────────────────────────────────────────────── -->
+<div class="login" id="loginView">
+  <div class="tag">🛡 Area riservata</div>
+  <h1 style="font-size:24px">Bacheca Presenze</h1>
+  <p class="sub">Inserisci il PIN amministratore</p>
+  <input type="password" id="pinInput" inputmode="numeric" autocomplete="current-password" placeholder="••••" />
+  <div class="err" id="pinErr"></div>
+  <button class="primary" id="loginBtn">Accedi</button>
+</div>
+
+<!-- ── DASHBOARD ─────────────────────────────────────────── -->
+<div class="wrap" id="dashView" hidden>
+  <header>
+    <div>
+      <div class="tag">Erodo OY — Presenze</div>
+      <h1>🛡 Bacheca Presenze</h1>
+      <p class="sub">Panorama giornaliero: presenze, orari, note e GPS</p>
+    </div>
+    <a class="back" href="index.html">← Pagina lavoratore</a>
+  </header>
+
+  <div class="err-banner" id="errBanner"></div>
+
+  <div class="toolbar">
+    <label for="dateInput">Data</label>
+    <input type="date" id="dateInput" />
+    <div class="spacer"></div>
+    <span class="meta" id="lastUpdate">—</span>
+    <button class="small" id="refreshBtn">⟳ Aggiorna</button>
+    <button class="small" id="logoutBtn">Esci</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="k">Presenti ora</div><div class="v green" id="stPresent">0</div></div>
+    <div class="stat"><div class="k">Entrate totali</div><div class="v blue" id="stIn">0</div></div>
+    <div class="stat"><div class="k">Uscite totali</div><div class="v" id="stOut">0</div></div>
+    <div class="stat"><div class="k">Ore lavorate</div><div class="v amber" id="stHours">0h</div></div>
+    <div class="stat"><div class="k">Senza uscita</div><div class="v amber" id="stOpen">0</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Sessioni della giornata <span class="count" id="sessCount"></span></h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Lavoratore</th>
+            <th>Entrata</th>
+            <th>Uscita</th>
+            <th>Durata</th>
+            <th>Stato</th>
+            <th>Posizione</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody id="sessBody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="sessEmpty" hidden>Nessun evento per questa data.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Registro eventi (cronologico) <span class="count" id="evCount"></span></h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Ora</th><th>Tipo</th><th>Lavoratore</th><th>GPS</th><th>Note</th></tr>
+        </thead>
+        <tbody id="evBody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="evEmpty" hidden>Nessun evento per questa data.</div>
+  </div>
+
+  <footer>
+    Dati da Google Sheets via Apps Script · aggiornamento automatico ogni 60 s<br/>
+    Accesso protetto da PIN (Script property <code>ADMIN_PIN</code>) · noindex
+  </footer>
+</div>
+
+<script>
+  'use strict';
+
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzueT0JKWHpNLL8AgM2p62_3LtClxzMBK3SNaelSBESjStQ3FC9Va2DOzBYKc5bwWje/exec';
+  const PIN_KEY = 'checkin_admin_pin';
+  const $ = id => document.getElementById(id);
+
+  let pin = sessionStorage.getItem(PIN_KEY) || '';
+  let timer = null;
+
+  function todayStr(d = new Date()) {
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c =>
+      ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+
+  function hhmm(iso) {
+    return new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  }
+  function dur(min) {
+    if (min == null) return '—';
+    return `${Math.floor(min / 60)}h ${String(min % 60).padStart(2, '0')}m`;
+  }
+
+  // ── AUTH ─────────────────────────────────────────────────
+  async function tryLogin(p) {
+    const date = todayStr();
+    const res = await fetch(`${SCRIPT_URL}?events=${date}&pin=${encodeURIComponent(p)}`);
+    const data = await res.json();
+    return data.ok ? data : Promise.reject(data);
+  }
+
+  async function login() {
+    const p = $('pinInput').value.trim();
+    if (!p) return;
+    $('loginBtn').disabled = true;
+    $('pinErr').textContent = '';
+    try {
+      await tryLogin(p);
+      pin = p;
+      sessionStorage.setItem(PIN_KEY, p);
+      showDash();
+    } catch (data) {
+      $('pinErr').textContent = data && data.error ? data.error : 'Accesso rifiutato.';
+    } finally {
+      $('loginBtn').disabled = false;
+    }
+  }
+
+  $('loginBtn').addEventListener('click', login);
+  $('pinInput').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+  $('logoutBtn').addEventListener('click', () => {
+    sessionStorage.removeItem(PIN_KEY);
+    pin = '';
+    clearInterval(timer);
+    $('dashView').hidden = true;
+    $('loginView').style.display = '';
+    $('pinInput').value = '';
+  });
+
+  function showDash() {
+    $('loginView').style.display = 'none';
+    $('dashView').hidden = false;
+    if (!$('dateInput').value) $('dateInput').value = todayStr();
+    refresh();
+    clearInterval(timer);
+    timer = setInterval(refresh, 60000);   // auto-refresh 60s
+  }
+
+  // ── DATA ─────────────────────────────────────────────────
+  async function refresh() {
+    const date = $('dateInput').value || todayStr();
+    const banner = $('errBanner');
+    banner.classList.remove('show');
+    try {
+      const res = await fetch(`${SCRIPT_URL}?events=${date}&pin=${encodeURIComponent(pin)}`);
+      const data = await res.json();
+      if (!data.ok) {
+        banner.textContent = '⚠ ' + (data.error || 'Errore sconosciuto');
+        banner.classList.add('show');
+        if (String(data.error || '').toLowerCase().indexOf('pin') !== -1) {
+          sessionStorage.removeItem(PIN_KEY);
+        }
+        return;
+      }
+      render(data.events || [], date);
+      $('lastUpdate').textContent = 'aggiornato ' +
+        new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch (e) {
+      banner.textContent = '⚠ Errore di rete — riprova.';
+      banner.classList.add('show');
+    }
+  }
+
+  function render(events, date) {
+    // ── raggruppa per sessione ──
+    const sessions = new Map();
+    for (const ev of events) {
+      if (!sessions.has(ev.sessionId)) sessions.set(ev.sessionId, { sessionId: ev.sessionId, nome: ev.nome, in: null, out: null });
+      const s = sessions.get(ev.sessionId);
+      if (ev.event === 'IN') s.in = ev;
+      else s.out = ev;
+      if (!s.nome) s.nome = ev.nome;
+    }
+    // sessioni "OUT orfani" (uscita senza entrata): contano come sessioni solo-out
+    const list = Array.from(sessions.values()).sort((a, b) => {
+      const ai = a.in ? a.in.iso : a.out.iso, bi = b.in ? b.in.iso : b.out.iso;
+      return ai < bi ? -1 : 1;
+    });
+
+    // ── stats ──
+    const nIn  = events.filter(e => e.event === 'IN').length;
+    const nOut = events.filter(e => e.event === 'OUT').length;
+    const openIds = new Set(events.filter(e => e.open && e.event === 'IN').map(e => e.sessionId));
+    const present = new Set(events.filter(e => e.open).map(e => e.nome)).size;
+    let totalMin = 0;
+    list.forEach(s => { if (s.in && s.out) totalMin += minutes(s.in.iso, s.out.iso); });
+
+    $('stPresent').textContent = present;
+    $('stIn').textContent = nIn;
+    $('stOut').textContent = nOut;
+    $('stHours').textContent = (totalMin / 60).toFixed(1).replace('.0', '') + 'h';
+    $('stOpen').textContent = openIds.size;
+    $('sessCount').textContent = list.length ? list.length + ' sessioni' : '';
+    $('evCount').textContent = events.length ? events.length + ' eventi' : '';
+
+    // ── tabella sessioni ──
+    $('sessEmpty').hidden = list.length > 0;
+    $('sessBody').innerHTML = list.map(s => {
+      const open = s.in && !s.out && openIds.has(s.sessionId);
+      const orfano = !s.in && s.out;
+      const inTime  = s.in  ? hhmm(s.in.iso)  : '—';
+      const outTime = s.out ? hhmm(s.out.iso) : '—';
+      const minutes_ = (s.in && s.out) ? minutes(s.in.iso, s.out.iso) : null;
+      const geo = s.in || s.out;
+      const gps = geo && geo.lat != null
+        ? `<a class="maplink" target="_blank" rel="noopener" href="${escapeHtml(geo.mapsUrl || ('https://www.google.com/maps?q=' + geo.lat + ',' + geo.lon))}">📍 ${Math.round(geo.accuracy)} m</a>`
+        : '<span class="badge nogps">senza GPS</span>';
+      const notes = [s.in && s.in.notes, s.out && s.out.notes].filter(Boolean).join(' · ');
+      const stato = orfano
+        ? '<span class="badge open">⚠ uscita orfana</span>'
+        : open ? '<span class="badge open">● ancora qui</span>'
+               : '<span class="badge IN">completata</span>';
+      return `<tr>
+        <td><b>${escapeHtml(s.nome)}</b></td>
+        <td>${inTime}</td>
+        <td>${outTime}</td>
+        <td class="dur">${dur(minutes_)}</td>
+        <td>${stato}</td>
+        <td>${gps}</td>
+        <td class="notes">${escapeHtml(notes) || '—'}</td>
+      </tr>`;
+    }).join('');
+
+    // ── registro eventi ──
+    $('evEmpty').hidden = events.length > 0;
+    $('evBody').innerHTML = events.map(ev => {
+      const gps = ev.lat != null
+        ? `<a class="maplink" target="_blank" rel="noopener" href="${escapeHtml(ev.mapsUrl || ('https://www.google.com/maps?q=' + ev.lat + ',' + ev.lon))}">${ev.lat.toFixed(5)}, ${ev.lon.toFixed(5)}</a>`
+        : '<span class="badge nogps">senza GPS</span>';
+      return `<tr>
+        <td class="muted">${hhmm(ev.iso)}</td>
+        <td><span class="badge ${ev.event}">${ev.event === 'IN' ? 'ENTRATA' : 'USCITA'}</span></td>
+        <td><b>${escapeHtml(ev.nome)}</b></td>
+        <td>${gps}</td>
+        <td class="notes">${escapeHtml(ev.notes) || '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function minutes(a, b) { return Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 60000)); }
+
+  $('refreshBtn').addEventListener('click', refresh);
+  $('dateInput').addEventListener('change', refresh);
+
+  // ── BOOT ─────────────────────────────────────────────────
+  (async function boot() {
+    if (pin) {
+      try { await tryLogin(pin); showDash(); return; }
+      catch { sessionStorage.removeItem(PIN_KEY); pin = ''; }
+    }
+    $('loginView').style.display = '';
+  })();
+</script>
+</body>
+</html>
